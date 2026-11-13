@@ -1,1 +1,42 @@
+name: Actualizar panel
 
+on:
+  schedule:
+    # 08:10 en Argentina (UTC-3) = 11:10 UTC, de lunes a viernes.
+    - cron: "10 11 * * 1-5"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: actualizar-panel
+  cancel-in-progress: false
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Generar el panel desde Wrike
+        env:
+          WRIKE_TOKEN: ${{ secrets.WRIKE_TOKEN }}
+        run: python generar_panel.py
+
+      - name: Publicar si hubo cambios
+        run: |
+          git config user.name "Panel UPN Pregrado"
+          git config user.email "actions@github.com"
+          git add index.html robots.txt
+          if git diff --staged --quiet; then
+            echo "Sin cambios respecto de la última publicación."
+          else
+            git commit -m "Actualización del panel — $(TZ=America/Argentina/Cordoba date '+%Y-%m-%d %H:%M')"
+            git push
+            echo "Panel actualizado y publicado."
+          fi
